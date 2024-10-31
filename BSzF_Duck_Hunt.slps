@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="ASCII"?>
+<model:MDescriptors xmlns:model="http://www.silabs.com/ss/Studio.ecore">
+  <descriptors name="BSzF_Duck_Hunt">
+    <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.super:4.4.4._716843167"/>
+    <properties key="universalConfig.relativeWorkspacePath" value="..\BSzF_Duck_Hunt.slcw"/>
+    <properties key="universalConfig.generationDirectory" value=""/>
+    <properties key="universalConfig.toolchainCompatibility" value="iar gcc"/>
+    <properties key="universalConfig.incrementalOverwriteConfigs" value="false"/>
+    <properties key="projectCommon.boardIds" value="brd2200a:0.0.0.A03"/>
+    <properties key="projectCommon.kitId" value=""/>
+    <properties key="projectCommon.partId" value="mcu.arm.efm32.gg.efm32gg990f1024"/>
+    <properties key="projectCommon.toolchainId" value="com.silabs.ss.tool.ide.arm.toolchain.gnu.cdt:12.2.1.20221205"/>
+    <properties key="universalConfig.projectTypeIds" value="com.silabs.ss.framework.ide.project.core.cdtMbsProjectType"/>
+    <properties key="projectCommon.importModeId" value="COPY"/>
+    <properties key="universalConfig.compSelProjInstanceId" value="1730315356609"/>
+  </descriptors>
+</model:MDescriptors>
