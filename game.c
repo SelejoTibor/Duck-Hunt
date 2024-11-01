@@ -54,7 +54,7 @@ void game_init(void)
  * @brief Delays number of msTick Systicks (typically 1 ms)
  * @param dlyTicks Number of ticks to delay
  ******************************************************************************/
-/*
+
 void Delay(int dlyTicks)
 {
   uint32_t curTicks;
@@ -62,41 +62,56 @@ void Delay(int dlyTicks)
   curTicks = msTicks;
   while ((msTicks - curTicks) < dlyTicks) ;
 }
- */
 
-void bulletDraw(void)
-{
-  for(int i = 0; i < 4; i++ )
-    {
-      if(true == bullets[i])
-        {
-          if(bulletTime[i] <= (uint32_t)((-250*difficulty+2000)/4))
-            {
-              lowerCharSegments[i].p = 1;
-              lowerCharSegments[i].j = 0;
-            }
-          else if((bulletTime[i] > (uint32_t)((-250*difficulty+2000)/4)) && bulletTime[i] <= (uint32_t)((-250*difficulty+2000)/2))
-            {
-              lowerCharSegments[i].p = 0;
-              lowerCharSegments[i].j = 1;
-            }
-          else if((bulletTime[i] > (uint32_t)((-250*difficulty+2000)/2)))
-            {
-              lowerCharSegments[i].p = 0;
-              lowerCharSegments[i].j = 0;
-              bullets[i] = false;
-            }
-        }
-      if(false == bullets[i])
-        {
-          bulletTime[i] = 0;
+bool hitInProgress = false;  // Állapotváltozó a találat jelzésére
+
+void checkHit(void) {
+    // Ellenőrizzük az összes oszlopot, hogy van-e lövedék a kacsa oszlopában
+    for (int i = 0; i < 4; i++) {
+        if (bullets[i] && i == p && !hitInProgress) { // Ha a kacsa és a lövedék ugyanabban az oszlopban van
+            hitInProgress = true;  // Beállítjuk a találat állapotot
+            score += 100;
+            break;
         }
     }
-  SegmentLCD_LowerSegments(lowerCharSegments);
 }
 
-void hit(void){
-  //TODO: vijúviju (kacssa villog)
+void bulletDraw(void) {
+    for (int i = 0; i < 4; i++) {
+        if (bullets[i]) {
+            if (bulletTime[i] <= (uint32_t)((-250 * difficulty + 2000) / 4)) {
+                lowerCharSegments[i].p = 1;
+                lowerCharSegments[i].j = 0;
+            }
+            else if (bulletTime[i] > (uint32_t)((-250 * difficulty + 2000) / 4) &&
+                     bulletTime[i] <= (uint32_t)((-250 * difficulty + 2000) / 2)) {
+                lowerCharSegments[i].p = 0;
+                lowerCharSegments[i].j = 1;
+            }
+            else if (bulletTime[i] > (uint32_t)((-250 * difficulty + 2000) / 2)) {
+                lowerCharSegments[i].p = 0;
+                lowerCharSegments[i].j = 0;
+                bullets[i] = false;
+                bulletTime[i] = 0;
+                if (hitInProgress && i == p) {
+                    hit(i);                  // Kacsa villogtatása találat után
+                    hitInProgress = false;   // Visszaállítjuk az állapotot
+                }
+            }
+        }
+    }
+    SegmentLCD_LowerSegments(lowerCharSegments);
+}
+
+void hit(int index) {
+    for (int i = 0; i < 6; i++) {
+        lowerCharSegments[index].a = 1;
+        SegmentLCD_LowerSegments(lowerCharSegments);
+        Delay(100);
+        lowerCharSegments[index].a = 0;
+        SegmentLCD_LowerSegments(lowerCharSegments);
+        Delay(100);
+    }
 }
 
 void sl_button_on_change(const sl_button_t *handle)
@@ -146,34 +161,34 @@ void deleteDuck(void)
 }
 
 
-int game()
-{
-  difficulty = start();
-  while(duckCounter<25)
-    {
-      /*Random kacsa és nehézség */
-      duckCounter++;
-      SegmentLCD_Number(score+duckCounter);
-      drawDuck();
-      msTicks = 0;
-      while(msTicks<-250*difficulty+2000)
-        {
-          bulletDraw();
-          sliderPos = CAPLESENSE_getSliderPosition();
-          sliderDownsc = sliderPos/16;
-          if((first || sliderDownsc!=pre_sliderDownsc)&&sliderPos!=-1)
-            {
-              first = false;
-              lowerCharSegments[pre_sliderDownsc].d = 0;
-              lowerCharSegments[sliderDownsc].d = 1;
-              SegmentLCD_LowerSegments(lowerCharSegments);
-              pre_sliderDownsc=sliderDownsc;
+int game() {
+    difficulty = start();
+    while (duckCounter < 25) {
+        duckCounter++;
+        SegmentLCD_Number(score + duckCounter);
+        drawDuck();
+        msTicks = 0;
+
+        while (msTicks < (-250 * difficulty + 2000)) {
+            bulletDraw();  // Kirajzoljuk a lövedéket
+            checkHit();    // Ellenőrizzük, hogy találat van-e
+
+            sliderPos = CAPLESENSE_getSliderPosition();
+            sliderDownsc = sliderPos / 16;
+            if ((first || sliderDownsc != pre_sliderDownsc) && sliderPos != -1) {
+                first = false;
+                lowerCharSegments[pre_sliderDownsc].d = 0;
+                lowerCharSegments[sliderDownsc].d = 1;
+                SegmentLCD_LowerSegments(lowerCharSegments);
+                pre_sliderDownsc = sliderDownsc;
             }
         }
-      deleteDuck();
+        deleteDuck();  // Eltüntetjük a kacsát, ha az idő lejárt
     }
-  return 0;
+    return 0;
 }
+
+
 
 
 
