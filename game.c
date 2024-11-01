@@ -36,18 +36,20 @@ void SysTick_Handler(void)
 
 void game_init(void)
 {
-  sliderDownsc=0;
-  pre_sliderDownsc=0;
-  duckCounter = 0;
-  score = 0;
-  first = true;
-  firstDuck = true;
-  for(int i = 0; i < 4; i++ )
+    sliderDownsc = 0;
+    pre_sliderDownsc = 0;
+    duckCounter = 0;
+    score = 0;
+    first = true;
+    firstDuck = true;
+
+    for (int i = 0; i < 4; i++ )
     {
-      bulletTime[i] = 0;
-      bullets[i] = false;
+        bulletTime[i] = 0;
+        bullets[i] = false;
     }
 }
+
 
 
 /***************************************************************************//**
@@ -163,6 +165,7 @@ void deleteDuck(void)
 
 int game() {
     difficulty = start();
+    SegmentLCD_Symbol(LCD_SYMBOL_COL10, 1); // COL10 szegmens bekapcsolása
     while (duckCounter < 25) {
         duckCounter++;
         SegmentLCD_Number(score + duckCounter);
