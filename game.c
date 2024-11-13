@@ -1,103 +1,107 @@
+/**
+ * @file game.c
+ * @brief A játék logikájának fő funkciói.
+ *
+ * Ez a fájl kezeli a kacsa megjelenítését, a lövéseket és a találatokat,
+ * valamint a játék állapotának kezelését.
+ */
+
 #include <segmentlcd.h>
 #include <sys/_stdint.h>
 #include "segmentlcd_individual.h"
 #include "caplesense.h"
 #include "sl_simple_button_instances.h"
 #include "start.h"
+#include "game_over.h"
 
+#define MAX_SEGMENTS 4          /**< Kijelző szegmensek maximális száma */
+#define MAX_DUCKS 25            /**< Maximum kacsák száma a játékban */
+#define HIT_BLINK_DURATION 100  /**< Találat jelzésének időtartama */
+
+/** Szegmens definíciók. */
 SegmentLCD_LowerCharSegments_TypeDef lowerCharSegments[SEGMENT_LCD_NUM_OF_LOWER_CHARS];
 
-volatile uint32_t msTicks; /* counts 1ms timeTicks */
-volatile uint32_t randomTime;
-volatile uint32_t bulletTime[4];
-volatile bool bullets[4];
-bool first;
-bool firstDuck;
-int sliderPos;
-int sliderDownsc;
-int pre_sliderDownsc;
-int difficulty;
-int duckCounter;
-int score;
-int p;
+/** Globális változók a játék állapotának nyomon követésére. */
+volatile int32_t msTicks;                   /**< 1 ms-os időzítések számlálója */
+volatile uint32_t randomTime;               /**< Véletlenszerű idő változó */
+volatile uint32_t bulletTime[MAX_SEGMENTS]; /**< Lövedék időzítők */
+volatile uint32_t hitBlinkTime;             /**< Találat villogási ideje */
+volatile bool hitInProgress;                /**< Találat folyamatban állapot */
+volatile bool bullets[MAX_SEGMENTS];        /**< Lövedék állapotok */
+volatile bool hits[MAX_SEGMENTS];           /**< Találati állapotok */
 
-void SysTick_Handler(void)
-{
-  msTicks++;       /* increment counter necessary in Delay()*/
-  randomTime++;
-  for(int i = 0; i < 4; i++)
-    {
-      if(true == bullets[i])
-        {
-          bulletTime[i]++;
+bool first;             /**< Első indítás jelző */
+bool firstDuck;         /**< Első kacsa megjelenítése */
+int sliderPos;          /**< Csúszka pozíció */
+int sliderDownsc;       /**< Csúszka skálázott pozíció */
+int pre_sliderDownsc;   /**< Előző csúszka pozíció */
+int difficulty;         /**< Nehézségi szint */
+int duckCounter;        /**< Kacsa számláló */
+int score;              /**< Játékos pontszáma */
+int duckPosition;       /**< Kacsa pozíció */
+
+/**
+ * @brief SysTick megszakítás kezelő.
+ *
+ * Növeli a msTicks számlálót és kezeli a lövedékek és találatok időzítését.
+ */
+void SysTick_Handler(void) {
+    msTicks++;  // Időzítés számláló
+    randomTime++;
+    for (int i = 0; i < MAX_SEGMENTS; i++) {
+        if (bullets[i]) {
+            bulletTime[i]++;
         }
+    }
+    if (hitInProgress) {
+        hitBlinkTime++;
     }
 }
 
-void game_init(void)
-{
+/**
+ * @brief A játék inicializálása.
+ *
+ * Beállítja a játék indulási állapotait, és visszaállítja a változókat.
+ */
+void game_init(void) {
     sliderDownsc = 0;
     pre_sliderDownsc = 0;
     duckCounter = 0;
     score = 0;
     first = true;
     firstDuck = true;
+    hitInProgress = false;
 
-    for (int i = 0; i < 4; i++ )
-    {
+    for (int i = 0; i < MAX_SEGMENTS; i++) {
         bulletTime[i] = 0;
         bullets[i] = false;
+        hits[i] = false;
     }
 }
 
-
-
-/***************************************************************************//**
- * @brief Delays number of msTick Systicks (typically 1 ms)
- * @param dlyTicks Number of ticks to delay
- ******************************************************************************/
-
-void Delay(int dlyTicks)
-{
-  uint32_t curTicks;
-
-  curTicks = msTicks;
-  while ((msTicks - curTicks) < dlyTicks) ;
-}
-
-bool hitInProgress = false;  // Állapotváltozó a találat jelzésére
-
-void checkHit(void) {
-    // Ellenőrizzük az összes oszlopot, hogy van-e lövedék a kacsa oszlopában
-    for (int i = 0; i < 4; i++) {
-        if (bullets[i] && i == p && !hitInProgress) { // Ha a kacsa és a lövedék ugyanabban az oszlopban van
-            hitInProgress = true;  // Beállítjuk a találat állapotot
-            score += 100;
-            break;
-        }
-    }
-}
-
+/**
+ * @brief Lövedékek kirajzolása az idő alapján.
+ *
+ * A lövedékek állapotát és megjelenítését kezeli a nehézségi szint alapján.
+ */
 void bulletDraw(void) {
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < MAX_SEGMENTS; i++) {
         if (bullets[i]) {
             if (bulletTime[i] <= (uint32_t)((-250 * difficulty + 2000) / 4)) {
                 lowerCharSegments[i].p = 1;
                 lowerCharSegments[i].j = 0;
-            }
-            else if (bulletTime[i] > (uint32_t)((-250 * difficulty + 2000) / 4) &&
-                     bulletTime[i] <= (uint32_t)((-250 * difficulty + 2000) / 2)) {
+            } else if (bulletTime[i] <= (uint32_t)((-250 * difficulty + 2000) / 2)) {
                 lowerCharSegments[i].p = 0;
                 lowerCharSegments[i].j = 1;
-            }
-            else if (bulletTime[i] > (uint32_t)((-250 * difficulty + 2000) / 2)) {
+            } else {
                 lowerCharSegments[i].p = 0;
                 lowerCharSegments[i].j = 0;
                 bullets[i] = false;
                 bulletTime[i] = 0;
-                if (hitInProgress && i == p) {
-                    hit(i);                  // Kacsa villogtatása találat után
-                    hitInProgress = false;   // Visszaállítjuk az állapotot
+                if (i == duckPosition) {
+                    hitInProgress = true;
+                    score += 100;
+                    hits[i] = true;
                 }
             }
         }
@@ -105,93 +109,120 @@ void bulletDraw(void) {
     SegmentLCD_LowerSegments(lowerCharSegments);
 }
 
-void hit(int index) {
-    for (int i = 0; i < 6; i++) {
-        lowerCharSegments[index].a = 1;
-        SegmentLCD_LowerSegments(lowerCharSegments);
-        Delay(100);
-        lowerCharSegments[index].a = 0;
-        SegmentLCD_LowerSegments(lowerCharSegments);
-        Delay(100);
-    }
-}
-
-void sl_button_on_change(const sl_button_t *handle)
-{
-  if (&sl_button_btn0 == handle)
-    {
-      if (sl_button_get_state(handle) == SL_SIMPLE_BUTTON_PRESSED)
-        {
-          if(!first)
-            {
-              bullets[pre_sliderDownsc] = true;
+/**
+ * @brief Találati effekt megjelenítése.
+ *
+ * Villogtatja a szegmenseket a találat jelzésére, és visszaállítja az
+ * állapotot a villogás után.
+ */
+void hit(void) {
+    if (hitInProgress) {
+        for (int i = 0; i < MAX_SEGMENTS; i++) {
+            if (hits[i]) {
+                if (hitBlinkTime <= HIT_BLINK_DURATION) {
+                    lowerCharSegments[i].a = 0;
+                } else if (hitBlinkTime <= 2 * HIT_BLINK_DURATION) {
+                    lowerCharSegments[i].a = 1;
+                } else if (hitBlinkTime <= 3 * HIT_BLINK_DURATION) {
+                    lowerCharSegments[i].a = 0;
+                } else if (hitBlinkTime <= 4 * HIT_BLINK_DURATION) {
+                    lowerCharSegments[i].a = 1;
+                } else {
+                    lowerCharSegments[i].a = 0;
+                    hitInProgress = false;
+                    hitBlinkTime = 0;
+                    hits[i] = false;
+                }
+                SegmentLCD_LowerSegments(lowerCharSegments);
             }
         }
-      else
-        {
-          return;
+    }
+}
+
+/**
+ * @brief Gomb állapotváltozás kezelő.
+ *
+ * Ha a gombot megnyomják, beállítja a megfelelő lövedéket.
+ *
+ * @param handle A gomb objektum mutatója.
+ */
+void sl_button_on_change(const sl_button_t *handle) {
+    if (&sl_button_btn0 == handle) {
+        if (sl_button_get_state(handle) == SL_SIMPLE_BUTTON_PRESSED) {
+            if (!first) {
+                bullets[pre_sliderDownsc] = true;
+            }
         }
     }
 }
 
-void drawDuck(void)
-{
-  int q = 0;
-  if(firstDuck)
-    {
-      p = randomTime % 4;
-      lowerCharSegments[p].a = 1;
-      SegmentLCD_LowerSegments(lowerCharSegments);
-      firstDuck = false;
-    }
-  else
-    {
-      q = p;
-      while(q == p)
-        {
-          p = randomTime % 4;
+/**
+ * @brief Kacsa kirajzolása a kijelzőn.
+ *
+ * Véletlenszerű pozícióban megjeleníti a kacsát a kijelzőn.
+ */
+void drawDuck(void) {
+    int prevDuckPosition = 0;
+    if (firstDuck) {
+        duckPosition = randomTime % MAX_SEGMENTS;
+        lowerCharSegments[duckPosition].a = 1;
+        SegmentLCD_LowerSegments(lowerCharSegments);
+        firstDuck = false;
+    } else {
+        prevDuckPosition = duckPosition;
+        while (prevDuckPosition == duckPosition) {
+            duckPosition = randomTime % MAX_SEGMENTS;
         }
-      lowerCharSegments[p].a = 1;
-      SegmentLCD_LowerSegments(lowerCharSegments);
+        lowerCharSegments[duckPosition].a = 1;
+        SegmentLCD_LowerSegments(lowerCharSegments);
     }
 }
 
-void deleteDuck(void)
-{
-  lowerCharSegments[p].a = 0;
-  SegmentLCD_LowerSegments(lowerCharSegments);
+/**
+ * @brief Kacsa eltüntetése a kijelzőről.
+ *
+ * Törli a kijelzőn megjelenő kacsát.
+ */
+void deleteDuck(void) {
+    lowerCharSegments[duckPosition].a = 0;
+    SegmentLCD_LowerSegments(lowerCharSegments);
 }
 
-
-int game() {
+/**
+ * @brief A játék fő ciklusa.
+ *
+ * A játékot futtatja, frissíti a képernyőt és kezeli az időzítéseket, találatokat.
+ *
+ * @return int A játék visszatérési értéke (jelenleg nem használ).
+ */
+int game(void) {
     difficulty = start();
-    SegmentLCD_Symbol(LCD_SYMBOL_COL10, 1); // COL10 szegmens bekapcsolása
-    while (duckCounter < 25) {
+    SegmentLCD_Symbol(LCD_SYMBOL_COL10, 1);
+    while (duckCounter < MAX_DUCKS) {
         duckCounter++;
         SegmentLCD_Number(score + duckCounter);
         drawDuck();
         msTicks = 0;
 
-        while (msTicks < (-250 * difficulty + 2000)) {
-            bulletDraw();  // Kirajzoljuk a lövedéket
-            checkHit();    // Ellenőrizzük, hogy találat van-e
-
+        while (msTicks < (-250 * difficulty + 2000) || hitInProgress) {
+            bulletDraw();
+            hit();
             sliderPos = CAPLESENSE_getSliderPosition();
             sliderDownsc = sliderPos / 16;
-            if ((first || sliderDownsc != pre_sliderDownsc) && sliderPos != -1) {
-                first = false;
+            if (sliderDownsc != pre_sliderDownsc && sliderPos != -1) {
                 lowerCharSegments[pre_sliderDownsc].d = 0;
                 lowerCharSegments[sliderDownsc].d = 1;
                 SegmentLCD_LowerSegments(lowerCharSegments);
                 pre_sliderDownsc = sliderDownsc;
+            } else if (first) {
+                pre_sliderDownsc = 0;
+                first = false;
+                lowerCharSegments[pre_sliderDownsc].d = 1;
+                SegmentLCD_LowerSegments(lowerCharSegments);
             }
         }
-        deleteDuck();  // Eltüntetjük a kacsát, ha az idő lejárt
+        deleteDuck();
     }
+    game_over();
     return 0;
 }
-
-
-
-
-

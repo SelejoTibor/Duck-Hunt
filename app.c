@@ -1,38 +1,10 @@
-/***************************************************************************//**
- * @file
- * @brief Top level application functions
- *******************************************************************************
- * # License
- * <b>Copyright 2020 Silicon Laboratories Inc. www.silabs.com</b>
- *******************************************************************************
+/**
+ * @file app.c
+ * @brief Fő alkalmazásvezérlő funkciók.
  *
- * The licensor of this software is Silicon Laboratories Inc. Your use of this
- * software is governed by the terms of Silicon Labs Master Software License
- * Agreement (MSLA) available at
- * www.silabs.com/about-us/legal/master-software-license-agreement. This
- * software is distributed to you in Source Code format and is governed by the
- * sections of the MSLA applicable to Source Code.
- *
- ******************************************************************************/
-
-/***************************************************************************//**
- * @file     app.c
- * @brief    Duck Hunt mini game
- *
- * @details  A képernyőn véletlenszerűen megjelennek kacsák, amiket le kell
- * tudni vadászni. A kacsák az alsó (alfanumerikus) kijelző valamelyik négy
- * mezejének legfelső vízszintes szegmensében jelenhetnek meg véletlenszerűen
- * (lásd zöld jelölést), majd a nehézségi szinttől függő ideig maradnak.
- * A vadásznak (alsó vízszintes szegmens) alájuk kell állnia és lelőni őket.
- *
- * Created on:
- *
- * Author:
- ******************************************************************************/
-
-/***************************************************************************//**
- * Initialize application.
- ******************************************************************************/
+ * Ez a fájl tartalmazza a játék inicializálását és a folyamatosan futó
+ * akcióvezérlő ciklust.
+ */
 
 #include "em_device.h"
 #include "em_cmu.h"
@@ -42,9 +14,18 @@
 #include "segmentlcd_individual.h"
 #include "sl_simple_button_instances.h"
 #include "start.h"
+#include "game_init.h"
+#include "game.h"
 
 #define PB1_PORT    gpioPortB
 #define PB1_PIN     10
+
+/**
+ * @brief Alkalmazás inicializálása.
+ *
+ * Beállítja a gombot bemenetre, inicializálja az LCD-t és a csúszkát,
+ * valamint elindítja a játékot.
+ */
 
 void app_init(void)
 {
@@ -57,9 +38,12 @@ void app_init(void)
     }
 }
 
-/***************************************************************************//**
- * App ticking function.
- ******************************************************************************/
+/**
+ * @brief Az alkalmazás folyamatosan futó akcióciklusa.
+ *
+ * Ezt a függvényt a fő ciklus hívja, és itt futtatja a játékot.
+ */
+
 void app_process_action(void)
 {
   game();

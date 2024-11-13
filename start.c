@@ -1,3 +1,12 @@
+/**
+ * @file start.c
+ * @brief Nehézségi szint kiválasztása a játék kezdetén.
+ *
+ * A játékos a csúszka segítségével választhat nehézségi szintet, amit
+ * az LCD kijelzőn is megjelenítünk.
+ */
+
+
 #include <caplesense.h>
 #include <em_gpio.h>
 #include <segmentlcd.h>
@@ -5,10 +14,17 @@
 #define PB1_PORT    gpioPortB
 #define PB1_PIN     10
 
-
+/**
+ * @brief Nehézségi szint kiválasztása.
+ *
+ * A függvény megvárja, míg a játékos a csúszka segítségével kiválasztja a
+ * nehézségi szintet, majd visszatér az értékkel.
+ *
+ * @return int A kiválasztott nehézségi szint (1-5).
+ */
 
 int start() {
-    int difficulty = 0;
+    int difficulty = 1;
 
     // Bekapcsoljuk a COL10 (:) szegmenst
     SegmentLCD_Symbol(LCD_SYMBOL_COL10, 1);
@@ -28,6 +44,5 @@ int start() {
             SegmentLCD_Number(difficulty);
         }
     }
-
     return difficulty;
 }

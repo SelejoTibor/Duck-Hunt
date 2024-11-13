@@ -1,3 +1,3 @@
 #include <stdbool.h>
 
-int game(int);
+void game(void);
